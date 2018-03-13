@@ -4,6 +4,9 @@ import { connect } from 'react-redux'
 import { fetchOneGame, fetchPlayers } from '../actions/games/fetch'
 import { connect as subscribeToWebsocket } from '../actions/websocket'
 import JoinGameDialog from '../components/games/JoinGameDialog'
+import Board from '../components/ticTacToe/Board'
+import makeMove from '../actions/makeMove'
+import {hasWinner} from '../functions'
 
 const playerShape = PropTypes.shape({
   userId: PropTypes.string.isRequired,
@@ -20,23 +23,19 @@ class Game extends PureComponent {
       _id: PropTypes.string.isRequired,
       userId: PropTypes.string.isRequired,
       players: PropTypes.arrayOf(playerShape),
-      draw: PropTypes.bool,
       updatedAt: PropTypes.string.isRequired,
       createdAt: PropTypes.string.isRequired,
       started: PropTypes.bool,
       turn: PropTypes.number.isRequired,
-      cards: PropTypes.arrayOf(PropTypes.shape({
-        symbol: PropTypes.string,
-        _id: PropTypes.string,
-        won: PropTypes.bool,
-        visible: PropTypes.bool
-      }))
+      board: PropTypes.arrayOf(PropTypes.string)
     }),
     currentPlayer: playerShape,
     isPlayer: PropTypes.bool,
     isJoinable: PropTypes.bool,
     hasTurn: PropTypes.bool
   }
+
+
 
   componentWillMount() {
     const { game, fetchOneGame, subscribeToWebsocket } = this.props
@@ -54,7 +53,23 @@ class Game extends PureComponent {
     }
   }
 
+  handleClick(position) {
+    const {game, isPlayer, hasTurn} = this.props
+
+    if(game.players.length < 2) return;
+
+    let moveType = game.turn === 0 ? 'X' : 'O'
+
+    if(hasTurn && isPlayer && (game.board[position] === "-") ){
+      let updatedGame = game
+      updatedGame.board[position] = moveType
+      updatedGame.turn = game.turn === 0 ? 1 : 0
+      this.props.makeMove(updatedGame)
+    }
+  }
+
   render() {
+    console.log(this.props)
     const { game } = this.props
 
     if (!game) return null
@@ -63,12 +78,19 @@ class Game extends PureComponent {
       .filter(n => !!n)
       .join(' vs ')
 
+    const winner = hasWinner(game.board)
+
+    if(winner !== ""){
+      return( <h1> {winner} HAS WON </h1>)
+    }
+
+
     return (
       <div className="Game">
         <h1>Game!</h1>
         <p>{title}</p>
 
-        <h1>YOUR GAME HERE! :)</h1>
+        <Board board={game.board} clickAction={this.handleClick.bind(this)}/>
 
         <h2>Debug Props</h2>
         <pre>{JSON.stringify(this.props, true, 2)}</pre>
@@ -95,5 +117,6 @@ const mapStateToProps = ({ currentUser, games }, { match }) => {
 export default connect(mapStateToProps, {
   subscribeToWebsocket,
   fetchOneGame,
-  fetchPlayers
+  fetchPlayers,
+  makeMove
 })(Game)
